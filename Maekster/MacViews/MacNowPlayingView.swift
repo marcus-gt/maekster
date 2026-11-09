@@ -23,8 +23,8 @@ final class MacPlayerPanels {
         volume = min(1, max(0, volume + step))
     }
     var showsQueue = false
-    /// Whether Now Playing shows the lyrics beside the cover.
-    var showsLyrics = true
+    /// Whether Now Playing shows the lyrics beside the cover. Off until asked for (the lyrics button).
+    var showsLyrics = false
 
     /// The player bar's lyrics button: shows or hides the lyrics in Now Playing, opening it (with
     /// lyrics) if it's closed.
@@ -149,17 +149,23 @@ struct MacNowPlayingView: View {
 
     private func content(_ state: PlayerState) -> some View {
         HStack(spacing: MaeksterSpacing.xxxl) {
-            VStack(alignment: .leading, spacing: MaeksterSpacing.l) {
-                CoverArtView(id: macCoverArtId(state) ?? "", size: 1200, tier: .hero,
-                             cornerRadius: MaeksterCornerRadius.large)
-                    .aspectRatio(1, contentMode: .fit)
-                    .frame(maxWidth: 520, maxHeight: 520)
-                    .shadow(radius: 24, y: 8)
-                if let track = state.currentTrack {
-                    details(track)
+            // The cover grows with the window: as large as fits above the song details.
+            GeometryReader { geometry in
+                let side = max(0, min(geometry.size.width,
+                                      geometry.size.height - MacNowPlayingMetrics.detailsHeight - MaeksterSpacing.l))
+                VStack(alignment: .leading, spacing: MaeksterSpacing.l) {
+                    CoverArtView(id: macCoverArtId(state) ?? "", size: 1600, tier: .hero,
+                                 cornerRadius: MaeksterCornerRadius.large)
+                        .frame(width: side, height: side)
+                        .shadow(radius: 24, y: 8)
+                    if let track = state.currentTrack {
+                        details(track)
+                            .frame(width: max(side, MacNowPlayingMetrics.minDetailsWidth), alignment: .leading)
+                    }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if panels.showsLyrics {
                 MacLyricsContent()
@@ -218,7 +224,6 @@ struct MacNowPlayingView: View {
             .controlSize(.large)
             .padding(.top, MaeksterSpacing.s)
         }
-        .frame(maxWidth: 520, alignment: .leading)
     }
 
     /// Closes Now Playing; Esc does too.
@@ -275,4 +280,11 @@ struct MacFavoriteSongButton: View {
         .foregroundStyle(isFavorite ? Color.maeksterAccent : .primary)
         .help(isFavorite ? "Remove from Favorites" : "Add to Favorites")
     }
+}
+
+private enum MacNowPlayingMetrics {
+    /// Room kept under the cover for the title, artist line and buttons.
+    static let detailsHeight: CGFloat = 150
+    /// The details keep this width even when a short window makes the cover small.
+    static let minDetailsWidth: CGFloat = 320
 }
