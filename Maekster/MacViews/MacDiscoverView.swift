@@ -41,6 +41,7 @@ struct MacDiscoverView: View {
         .navigationTitle("Discover")
         .navigationDestination(for: AlbumRecommendation.self) { release in
             FreshReleaseDetailView(release: release, providers: container?.externalProvidersStore.load() ?? [])
+                .macQueueInspector()
         }
         .toolbar {
             Button {
@@ -309,6 +310,7 @@ struct MacAllFreshReleases: View {
         }
         .navigationDestination(for: AlbumRecommendation.self) { release in
             FreshReleaseDetailView(release: release, providers: container?.externalProvidersStore.load() ?? [])
+                .macQueueInspector()
         }
         .task {
             guard viewModel == nil, let container else { return }

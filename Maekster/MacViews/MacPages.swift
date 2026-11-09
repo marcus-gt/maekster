@@ -352,6 +352,7 @@ struct MacArtistView: View {
 
     @Environment(\.appContainer) private var container
     @State private var viewModel: ArtistDetailViewModel?
+    @State private var hasLoaded = false
 
     private var source: QueueSource { .artist(id: artistId, name: artistName) }
 
@@ -374,18 +375,22 @@ struct MacArtistView: View {
         }
         .navigationTitle(artistName)
         .task {
-            guard viewModel == nil, let container else { return }
-            let vm = ArtistDetailViewModel(
-                artistId: artistId,
-                artistName: artistName,
-                libraryService: container.libraryService,
-                downloadService: container.downloadService,
-                recommendationService: container.recommendationService,
-                imageResolver: container.externalArtistImageResolver,
-                serverState: container.serverState,
-                offlineReader: container.offlineBrowsingReader
-            )
-            viewModel = vm
+            guard let container else { return }
+            if viewModel == nil {
+                viewModel = ArtistDetailViewModel(
+                    artistId: artistId,
+                    artistName: artistName,
+                    libraryService: container.libraryService,
+                    downloadService: container.downloadService,
+                    recommendationService: container.recommendationService,
+                    imageResolver: container.externalArtistImageResolver,
+                    serverState: container.serverState,
+                    offlineReader: container.offlineBrowsingReader
+                )
+            }
+            // The page can be rebuilt while this runs (the queue inspector around it), which cancels
+            // the task part-way. Run it again until every step has finished once.
+            guard let vm = viewModel, !hasLoaded else { return }
             // Same order as the iPhone artist page.
             await vm.load()
             await vm.loadAppearances()
@@ -393,6 +398,7 @@ struct MacArtistView: View {
             await vm.loadTopSongs()
             await vm.loadSimilarArtists()
             await artistInfo
+            if !Task.isCancelled { hasLoaded = true }
         }
     }
 
