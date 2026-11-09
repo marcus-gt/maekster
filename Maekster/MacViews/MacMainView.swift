@@ -134,6 +134,7 @@ struct MacMainView: View {
             Group {
                 if panels.showsNowPlaying {
                     MacNowPlayingView()
+                        .macQueueInspector()
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 } else {
                     NavigationStack(path: $navigator.path) {
@@ -144,17 +145,12 @@ struct MacMainView: View {
                                 MacSearchView(query: searchText, submitCount: searchSubmitCount)
                             }
                         }
-                        .navigationDestination(for: MacRoute.self, destination: page)
+                        .macQueueInspector()
+                        .navigationDestination(for: MacRoute.self) { page($0).macQueueInspector() }
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // The queue is an inspector: its own column beside the page and Now Playing, so a pushed
-            // page (which the split view draws on top of its siblings) can't cover it.
-            .inspector(isPresented: $panels.showsQueue) {
-                MacQueuePanel()
-                    .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
-            }
             .animation(.easeInOut(duration: 0.25), value: panels.showsNowPlaying)
         }
         .searchable(text: $searchText, placement: .toolbar, prompt: "Artists, albums, songs, playlists…")
@@ -226,6 +222,27 @@ struct MacMainView: View {
             MacPlaylistCollection(title: title, playlists: playlists)
         case .freshReleases: MacAllFreshReleases()
         case .internetRadio: RadioListView()
+        }
+    }
+}
+
+extension View {
+    /// The queue as an inspector column beside this page. Every page in the navigation stack (and
+    /// Now Playing) gets its own: an inspector outside the stack only opens while the stack shows its
+    /// root, not on pushed pages. All of them follow `MacPlayerPanels.showsQueue`.
+    func macQueueInspector() -> some View {
+        modifier(MacQueueInspector())
+    }
+}
+
+private struct MacQueueInspector: ViewModifier {
+    @Environment(MacPlayerPanels.self) private var panels
+
+    func body(content: Content) -> some View {
+        @Bindable var panels = panels
+        content.inspector(isPresented: $panels.showsQueue) {
+            MacQueuePanel()
+                .inspectorColumnWidth(min: 280, ideal: 340, max: 480)
         }
     }
 }
