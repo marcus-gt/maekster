@@ -423,10 +423,6 @@ struct MacArtistView: View {
                         : nil
                 ) { MacAlbumShelfCell(album: $0) }
 
-                if let biography = vm.biography {
-                    about(biography, vm: vm)
-                }
-
                 MacShelf(title: Text("Similar Artists"), items: vm.similarArtists.filter(\.inLibrary),
                          cellWidth: MacShelfMetrics.artistWidth) { artist in
                     MacArtistShelfCell(artist: ArtistID3(id: artist.id, name: artist.name, coverArt: artist.coverArt))
@@ -459,19 +455,15 @@ struct MacArtistView: View {
             .overlay {
                 // Darkens toward the bottom so the name reads, then melts into the page.
                 LinearGradient(
-                    stops: [.init(color: .clear, location: 0.35),
-                            .init(color: .black.opacity(0.55), location: 0.8),
+                    stops: [.init(color: .clear, location: 0.25),
+                            .init(color: .black.opacity(0.6), location: 0.75),
                             .init(color: Color(nsColor: .windowBackgroundColor), location: 1)],
                     startPoint: .top, endPoint: .bottom
                 )
             }
             .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: MaeksterSpacing.m) {
                 HStack(alignment: .center, spacing: MaeksterSpacing.m) {
-                    Button { Task { await playAll(vm, shuffled: false) } } label: {
-                        Label("Play", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.maeksterCircle(diameter: MaeksterControlSize.large, isProminent: true))
-                    .help("Play")
                     Text(vm.artist?.name ?? artistName)
                         .font(.system(size: MacArtistMetrics.nameSize, weight: .bold))
                         .foregroundStyle(.white)
@@ -479,14 +471,36 @@ struct MacArtistView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                         .textSelection(.enabled)
+                    // Play and Shuffle after the name, the same size.
+                    Button { Task { await playAll(vm, shuffled: false) } } label: {
+                        Label("Play", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.maeksterCircle(diameter: MaeksterControlSize.large, isProminent: true))
+                    .help("Play")
                     Button { Task { await playAll(vm, shuffled: true) } } label: {
                         Label("Shuffle", systemImage: "shuffle")
                     }
-                    .buttonStyle(.maeksterCircle(diameter: MaeksterControlSize.regular))
+                    .buttonStyle(.maeksterCircle(diameter: MaeksterControlSize.large))
                     .help("Shuffle")
                     if vm.isPlayLoading { ProgressView().controlSize(.small) }
                     Spacer(minLength: 0)
                     MacArtistFavoriteButton(artistId: artistId)
+                }
+                // Like Spotify: the album count and the start of the biography on the photo.
+                if vm.biography != nil || (vm.artist?.albumCount ?? 0) > 0 {
+                    VStack(alignment: .leading, spacing: MaeksterSpacing.xs) {
+                        if let count = vm.artist?.albumCount, count > 0 {
+                            Text("\(count) albums")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                        }
+                        if let biography = vm.biography {
+                            MacExpandableText(text: biography, lineLimit: 6)
+                        }
+                    }
+                    .frame(maxWidth: MacPageHeaderMetrics.notesWidth, alignment: .leading)
+                    .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+                }
                 }
                 .padding(.horizontal, MaeksterSpacing.xl)
                 .padding(.bottom, MaeksterSpacing.l)
@@ -569,24 +583,6 @@ struct MacArtistView: View {
         }
     }
 
-    // MARK: About
-
-    private func about(_ biography: String, vm: ArtistDetailViewModel) -> some View {
-        VStack(alignment: .leading, spacing: MaeksterSpacing.s) {
-            Text("About")
-                .font(.maeksterShelfTitle)
-            HStack(alignment: .top, spacing: MaeksterSpacing.xxl) {
-                MacExpandableText(text: biography, lineLimit: 6)
-                    .frame(maxWidth: MacPageHeaderMetrics.notesWidth, alignment: .leading)
-                if let count = vm.artist?.albumCount, count > 0 {
-                    Text("\(count) albums")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, MaeksterSpacing.xl)
-    }
-
     private func play(_ songs: [DisplayableSong], from index: Int) {
         guard let container, songs.indices.contains(index) else { return }
         Task {
@@ -666,7 +662,7 @@ private struct MacArtistFavoriteButton: View {
 private enum MacArtistMetrics {
     /// Width to height of the hero, and the heights it stays between.
     static let heroAspectRatio: CGFloat = 2.2
-    static let heroMinHeight: CGFloat = 340
+    static let heroMinHeight: CGFloat = 420
     static let heroMaxHeight: CGFloat = 620
     static let nameSize: CGFloat = 40
     static let latestCover: CGFloat = 140
